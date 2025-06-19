@@ -1,5 +1,14 @@
-FROM python:3.11-slim
+FROM python:3.9-slim
+
 WORKDIR /app
+
+# Установка системных зависимостей
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Установка зависимостей Python
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
@@ -20,5 +29,8 @@ RUN apt-get update && apt-get install -y \
 # Копируем путь к шрифту в переменную окружения
 ENV FONT_PATH=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
 
-EXPOSE 80
-CMD ["gunicorn", "--bind", "0.0.0.0:80", "app:app"] 
+# Открываем порт
+EXPOSE 8080
+
+# Запускаем приложение через gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "app:app"] 
