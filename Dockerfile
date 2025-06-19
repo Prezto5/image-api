@@ -3,14 +3,14 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Создаем директорию assets
-RUN mkdir -p assets
+# Создаем директорию assets и копируем файлы
+COPY assets /app/assets/
 
-# Копируем ассеты отдельно
-COPY assets/* assets/
-
-# Копируем остальные файлы приложения
+# Копируем файл приложения
 COPY app.py .
+
+# Проверяем наличие файлов
+RUN ls -la /app/assets/
 
 # Устанавливаем шрифт DejaVu Sans (стандартный шрифт, который часто доступен в Linux)
 RUN apt-get update && apt-get install -y \

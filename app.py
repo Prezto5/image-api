@@ -24,14 +24,32 @@ SPACING = 20
 LOGO_SIZE = (200, 100)  # Размер для логотипа
 SIGNATURE_HEIGHT = 40   # Высота для подписи
 
+# Получаем абсолютный путь к директории приложения
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+ASSETS_DIR = os.path.join(APP_DIR, 'assets')
+
 def check_assets():
     """Проверяет наличие и доступность файлов ассетов"""
     assets = ['logo.png', 'Signature.png']
     missing = []
+    
+    # Выводим информацию о текущей директории и содержимом
+    logger.info(f"Current directory: {os.getcwd()}")
+    logger.info(f"APP_DIR: {APP_DIR}")
+    logger.info(f"ASSETS_DIR: {ASSETS_DIR}")
+    
+    if os.path.exists(ASSETS_DIR):
+        logger.info(f"Contents of {ASSETS_DIR}:")
+        for item in os.listdir(ASSETS_DIR):
+            logger.info(f"- {item}")
+    else:
+        logger.warning(f"Assets directory not found: {ASSETS_DIR}")
+    
     for asset in assets:
-        path = os.path.join('assets', asset)
+        path = os.path.join(ASSETS_DIR, asset)
         if not os.path.exists(path):
             missing.append(asset)
+            logger.warning(f"Asset not found: {path}")
         else:
             logger.info(f"Asset found: {path}")
     return missing
@@ -46,7 +64,7 @@ def add_logo_and_signature(canvas):
 
         logger.info("Starting to add logo")
         # Загрузка и размещение логотипа
-        logo_path = os.path.join('assets', 'logo.png')
+        logo_path = os.path.join(ASSETS_DIR, 'logo.png')
         logo = Image.open(logo_path)
         logger.info(f"Logo loaded successfully: {logo.size}, mode: {logo.mode}")
         
@@ -63,7 +81,7 @@ def add_logo_and_signature(canvas):
         
         logger.info("Starting to add signature")
         # Загрузка и размещение подписи
-        signature_path = os.path.join('assets', 'Signature.png')
+        signature_path = os.path.join(ASSETS_DIR, 'Signature.png')
         signature = Image.open(signature_path)
         logger.info(f"Signature loaded successfully: {signature.size}, mode: {signature.mode}")
         
