@@ -1,16 +1,20 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from PIL import Image
 import io
 import logging
 import os
-from flask_cors import CORS
+import uuid
 
 app = Flask(__name__)
-CORS(app)
 
 # Настройка логирования
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+
+# Константы
+UPLOAD_FOLDER = '/app/uploads'
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
 
 @app.route('/resize', methods=['POST'])
 def resize_image():
@@ -32,20 +36,36 @@ def resize_image():
         img = img.resize((800, 600))
         logger.info("Размер изображения изменен")
         
-        # Сохраняем в буфер
-        img_io = io.BytesIO()
-        img.save(img_io, 'JPEG')
-        img_io.seek(0)
+        # Генерируем уникальное имя файла
+        filename = f"{uuid.uuid4()}.jpg"
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
         
-        # Возвращаем результат
+        # Сохраняем файл
+        img.save(filepath, 'JPEG')
+        logger.info(f"Файл сохранен как {filepath}")
+        
+        # Формируем URL
+        url = f"https://imageapi-nrkypima.b4a.run/image/{filename}"
+        
+        # Возвращаем JSON с URL
         return jsonify({
             'success': True,
             'message': 'Image resized successfully',
-            'data': img_io.getvalue().decode('latin1')
+            'url': url
         })
 
     except Exception as e:
         logger.error(f"Ошибка при обработке изображения: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/image/<filename>')
+def get_image(filename):
+    try:
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+        if not os.path.exists(filepath):
+            return jsonify({'error': 'File not found'}), 404
+        return send_file(filepath, mimetype='image/jpeg')
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
