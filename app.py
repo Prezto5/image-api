@@ -29,7 +29,7 @@ PHOTO_GAP_VERTICAL = 252    # отступ между фото по вертик
 LOGO_MARGIN_LEFT = 462    # отступ слева для лого
 LOGO_TO_BOTTOM_PHOTO = 204  # отступ от нижнего фото до лого
 TEXT_MARGIN_LEFT = 144    # отступ между лого и текстом
-TEXT_TO_BOTTOM_PHOTO = 245  # отступ от нижнего фото до подписи йцуйц
+TEXT_TO_BOTTOM_PHOTO = 240  # отступ от нижнего фото до подписи
 
 # Получаем абсолютный путь к директории приложения
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
