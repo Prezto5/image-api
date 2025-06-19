@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 CANVAS_HEIGHT = 1958  # высота холста
 CANVAS_WIDTH = 1785   # ширина холста
 
-# Отступы для фотографий
+# Отступы для фотографий (обновлено 2024)
 PHOTO_MARGIN_LEFT = 107  # отступ слева
 PHOTO_MARGIN_TOP = 85    # отступ сверху
 PHOTO_GAP_HORIZONTAL = 166  # отступ между фото по горизонтали
@@ -29,7 +29,7 @@ PHOTO_GAP_VERTICAL = 252    # отступ между фото по вертик
 LOGO_MARGIN_LEFT = 462    # отступ слева для лого
 LOGO_TO_BOTTOM_PHOTO = 204  # отступ от нижнего фото до лого
 TEXT_MARGIN_LEFT = 144    # отступ между лого и текстом
-TEXT_TO_BOTTOM_PHOTO = 330  # отступ от нижнего фото до подписи
+TEXT_TO_BOTTOM_PHOTO = 300  # отступ от нижнего фото до подписи
 
 # Получаем абсолютный путь к директории приложения
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
