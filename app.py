@@ -1,4 +1,4 @@
-from flask import Flask, request, send_file, jsonify
+from flask import Flask, request, send_file, jsonify, make_response
 from PIL import Image
 import io
 import logging
@@ -9,6 +9,7 @@ import requests
 import parse
 from parse.connection import register
 import uuid
+import json
 
 # Конфигурация Back4App
 BACK4APP_CONFIG = {
@@ -112,21 +113,19 @@ def resize_images():
         image_data = None
         
         if 'photo' in request.files:
-            # Получаем изображение из файла
             photo = request.files['photo']
             image_data = photo.read()
             logger.info(f"Received photo from file: {photo.filename}")
         elif 'photo_url' in request.form:
-            # Получаем изображение по URL
             photo_url = request.form['photo_url']
             logger.info(f"Downloading photo from URL: {photo_url}")
             response = requests.get(photo_url)
             if response.status_code == 200:
                 image_data = response.content
             else:
-                return {'error': f'Failed to download image from URL: {response.status_code}'}, 400
+                return make_response(jsonify({'error': f'Failed to download image from URL: {response.status_code}'}), 400)
         else:
-            return {'error': 'No photo or photo_url provided'}, 400
+            return make_response(jsonify({'error': 'No photo or photo_url provided'}), 400)
             
         # Создаем объект изображения из данных
         img_buffer = io.BytesIO(image_data)
@@ -143,15 +142,10 @@ def resize_images():
         
         # Размещаем фотографии на холсте
         for i in range(6):
-            # Вычисляем позицию для фото
             row = i // 3
             col = i % 3
-            
-            # Вычисляем координаты для размещения фото
             x = PHOTO_MARGIN_LEFT + col * (img_width + PHOTO_GAP_HORIZONTAL)
             y = PHOTO_MARGIN_TOP + row * (img_height + PHOTO_GAP_VERTICAL)
-            
-            # Размещаем фото на холсте
             canvas.paste(img, (x, y))
             logger.info(f"Placed photo {i+1} at position ({x}, {y})")
 
@@ -168,7 +162,7 @@ def resize_images():
             # Проверяем права на запись
             if not os.access(os.path.dirname(filepath), os.W_OK):
                 logger.error(f"No write access to directory: {os.path.dirname(filepath)}")
-                return {'error': 'No write access to results directory'}, 500
+                return make_response(jsonify({'error': 'No write access to results directory'}), 500)
             
             # Сохраняем результат
             canvas.save(filepath, format='JPEG', quality=95)
@@ -178,21 +172,25 @@ def resize_images():
             public_url = f"https://imageapi-nrkypima.b4a.run/results/{filename}"
             logger.info(f"Generated public URL: {public_url}")
             
-            return jsonify({
+            # Создаем и возвращаем ответ
+            response_data = {
                 'url': public_url,
                 'status': 'success',
-                'filepath': filepath  # Добавляем для отладки
-            })
+                'filepath': filepath
+            }
+            
+            response = make_response(json.dumps(response_data))
+            response.headers['Content-Type'] = 'application/json'
+            return response
 
         except Exception as e:
             logger.error(f"Error saving file: {str(e)}")
-            return {'error': f'Failed to save file: {str(e)}'}, 500
+            return make_response(jsonify({'error': f'Failed to save file: {str(e)}'}), 500)
 
     except Exception as e:
         logger.error(f"Error processing image: {str(e)}")
-        return {'error': str(e)}, 500
+        return make_response(jsonify({'error': str(e)}), 500)
 
-# Добавляем маршрут для доступа к результатам
 @app.route('/results/<filename>')
 def get_result(filename):
     try:
@@ -201,19 +199,21 @@ def get_result(filename):
         
         if not os.path.exists(filepath):
             logger.error(f"File not found: {filepath}")
-            return {'error': 'File not found'}, 404
+            return make_response(jsonify({'error': 'File not found'}), 404)
             
         if not os.access(filepath, os.R_OK):
             logger.error(f"No read access to file: {filepath}")
-            return {'error': 'No read access to file'}, 403
+            return make_response(jsonify({'error': 'No read access to file'}), 403)
             
-        return send_file(
-            filepath,
-            mimetype='image/jpeg'
-        )
+        response = make_response(send_file(filepath, mimetype='image/jpeg'))
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response
+        
     except Exception as e:
         logger.error(f"Error serving result file: {str(e)}")
-        return {'error': f'Error serving file: {str(e)}'}, 500
+        return make_response(jsonify({'error': f'Error serving file: {str(e)}'}), 500)
 
 @app.after_request
 def after_request(response):
