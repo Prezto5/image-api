@@ -24,7 +24,7 @@ def resize_image():
             print(f"[ERROR] Unsupported format: {img.format}", file=sys.stderr)
             return {"error": "Unsupported format"}, 415
         # Жёстко заданные параметры по макету
-        canvas_w, canvas_h = 1958, 1785
+        canvas_w, canvas_h = 1785, 1958  # ширина x высота
         photo_w, photo_h = 413, 531
         border = 2
         border_color = (198, 198, 198)  # C6C6C6
@@ -62,7 +62,7 @@ def resize_image():
         img_bytes = io.BytesIO()
         canvas.save(img_bytes, format='PNG')
         img_bytes.seek(0)
-        print(f"[INFO] 6 images placed on canvas {canvas_w}x{canvas_h} as in Figma layout", file=sys.stderr)
+        print(f"[INFO] 6 images placed on canvas {canvas_w}x{canvas_h} as in Figma layout (W x H)", file=sys.stderr)
         return send_file(img_bytes, mimetype='image/png')
     except Exception as e:
         print(f"[ERROR] Exception: {str(e)}", file=sys.stderr)
