@@ -29,7 +29,7 @@ PHOTO_GAP_VERTICAL = 252    # отступ между фото по вертик
 LOGO_MARGIN_LEFT = 462    # отступ слева для лого
 LOGO_TO_BOTTOM_PHOTO = 204  # отступ от нижнего фото до лого
 TEXT_MARGIN_LEFT = 144    # отступ между лого и текстом
-TEXT_TO_BOTTOM_PHOTO = 240  # отступ от нижнего фото до подписи
+TEXT_TO_BOTTOM_PHOTO = 200  # отступ от нижнего фото до подписи
 
 # Получаем абсолютный путь к директории приложения
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -69,29 +69,24 @@ def add_logo_and_signature(canvas, bottom_photo_y, photo_height):
 @app.route('/resize', methods=['POST'])
 def resize_images():
     try:
-        if 'photos' not in request.files:
-            return {'error': 'No photos provided'}, 400
+        if 'photo' not in request.files:
+            return {'error': 'No photo provided'}, 400
             
-        photos = request.files.getlist('photos')
-        if len(photos) != 6:
-            return {'error': 'Exactly 6 photos required'}, 400
-
+        photo = request.files['photo']
+        
         # Создаем белый холст
         canvas = Image.new('RGB', (CANVAS_WIDTH, CANVAS_HEIGHT), 'white')
         
-        # Открываем первое фото для получения размеров
-        first_photo = Image.open(photos[0]).convert('RGB')
-        img_width = first_photo.width
-        img_height = first_photo.height
+        # Открываем фото
+        img = Image.open(photo).convert('RGB')
+        img_width = img.width
+        img_height = img.height
         
         # Вычисляем Y-координату нижнего ряда фотографий
         bottom_photo_y = calculate_bottom_photo_y(img_height)
         
         # Размещаем фотографии на холсте
-        for i, photo in enumerate(photos):
-            img = Image.open(photo)
-            img = img.convert('RGB')
-            
+        for i in range(6):
             # Вычисляем позицию для фото
             row = i // 3
             col = i % 3
@@ -114,7 +109,7 @@ def resize_images():
         return send_file(output, mimetype='image/jpeg')
 
     except Exception as e:
-        logger.error(f"Error processing images: {str(e)}")
+        logger.error(f"Error processing image: {str(e)}")
         return {'error': str(e)}, 500
 
 if __name__ == '__main__':
