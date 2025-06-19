@@ -75,6 +75,7 @@ def resize_images():
             return {'error': 'No photo provided'}, 400
             
         photo = request.files['photo']
+        logger.info(f"Received photo: {photo.filename}")
         
         # Создаем белый холст
         canvas = Image.new('RGB', (CANVAS_WIDTH, CANVAS_HEIGHT), 'white')
@@ -83,6 +84,7 @@ def resize_images():
         img = Image.open(photo).convert('RGB')
         img_width = img.width
         img_height = img.height
+        logger.info(f"Image dimensions: {img_width}x{img_height}")
         
         # Вычисляем Y-координату нижнего ряда фотографий
         bottom_photo_y = calculate_bottom_photo_y(img_height)
@@ -99,16 +101,29 @@ def resize_images():
             
             # Размещаем фото на холсте
             canvas.paste(img, (x, y))
+            logger.info(f"Placed photo {i+1} at position ({x}, {y})")
 
         # Добавляем логотип и подпись
         add_logo_and_signature(canvas, bottom_photo_y, img_height)
+        logger.info("Added logo and signature")
 
         # Сохраняем результат
         output = io.BytesIO()
         canvas.save(output, format='JPEG', quality=95)
         output.seek(0)
         
-        return send_file(output, mimetype='image/jpeg')
+        # Сохраняем копию для отладки
+        canvas.save('debug_result.jpg', format='JPEG', quality=95)
+        logger.info("Saved debug copy to debug_result.jpg")
+        
+        response = send_file(
+            output,
+            mimetype='image/jpeg',
+            as_attachment=True,
+            download_name='result.jpg'
+        )
+        logger.info("Sending response")
+        return response
 
     except Exception as e:
         logger.error(f"Error processing image: {str(e)}")
