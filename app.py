@@ -15,12 +15,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Константы
+# Константы для холста
 CANVAS_WIDTH = 1958
 CANVAS_HEIGHT = 1785
-BORDER_COLOR = "#C6C6C6"
-BORDER_WIDTH = 2
-SPACING = 20
+
+# Отступы для фотографий
+PHOTO_MARGIN_LEFT = 107  # отступ слева
+PHOTO_MARGIN_TOP = 85    # отступ сверху
+PHOTO_MARGIN_BOTTOM = 97 # отступ между рядами
+PHOTO_GAP = 166         # отступ между фото
 
 # Отступы для лого и подписи
 LEFT_MARGIN = 369  # отступ слева для лого
@@ -71,30 +74,21 @@ def resize_images():
         # Создаем белый холст
         canvas = Image.new('RGB', (CANVAS_WIDTH, CANVAS_HEIGHT), 'white')
         
-        # Вычисляем размеры для фотографий (2 ряда по 3 фото)
-        photo_width = (CANVAS_WIDTH - (4 * SPACING)) // 3
-        photo_height = (CANVAS_HEIGHT - (4 * SPACING) - 300) // 2  # 300px для области логотипа и подписи
-
         # Размещаем фотографии на холсте
         for i, photo in enumerate(photos):
             img = Image.open(photo)
             img = img.convert('RGB')
             
-            # Сохраняем пропорции при ресайзе
-            img.thumbnail((photo_width, photo_height), Image.Resampling.LANCZOS)
-            
             # Вычисляем позицию для фото
             row = i // 3
             col = i % 3
-            x = SPACING + col * (photo_width + SPACING)
-            y = SPACING + row * (photo_height + SPACING)
             
-            # Добавляем рамку
-            bordered_img = Image.new('RGB', (img.width + 2*BORDER_WIDTH, img.height + 2*BORDER_WIDTH), BORDER_COLOR)
-            bordered_img.paste(img, (BORDER_WIDTH, BORDER_WIDTH))
+            # Вычисляем координаты для размещения фото
+            x = PHOTO_MARGIN_LEFT + col * (img.width + PHOTO_GAP)
+            y = PHOTO_MARGIN_TOP + row * (img.height + PHOTO_MARGIN_BOTTOM)
             
             # Размещаем фото на холсте
-            canvas.paste(bordered_img, (x, y))
+            canvas.paste(img, (x, y))
 
         # Добавляем логотип и подпись
         add_logo_and_signature(canvas)
