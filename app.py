@@ -33,7 +33,7 @@ parse.serverURL = BACK4APP_CONFIG['SERVER_URL']
 
 # Настройка логирования
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,  # Изменено на DEBUG для более подробного логирования
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     stream=sys.stdout
 )
@@ -231,32 +231,41 @@ def get_image(filename):
 @app.route('/resize', methods=['POST'])
 def resize_images():
     try:
+        logger.debug("Starting resize_images function")
+        logger.debug(f"Request headers: {dict(request.headers)}")
+        logger.debug(f"Request form: {dict(request.form)}")
+        logger.debug(f"Request files: {dict(request.files)}")
+        
         image_data = None
         
         if 'photo' in request.files:
             photo = request.files['photo']
             image_data = photo.read()
             logger.info(f"Received photo from file: {photo.filename}")
+            logger.debug(f"Image data size: {len(image_data)} bytes")
         elif 'photo_url' in request.form:
             photo_url = request.form['photo_url']
             logger.info(f"Downloading photo from URL: {photo_url}")
             response = requests.get(photo_url)
             if response.status_code == 200:
                 image_data = response.content
+                logger.debug(f"Downloaded image size: {len(image_data)} bytes")
             else:
-                response = make_response(json.dumps({
+                error_response = make_response(json.dumps({
                     'error': f'Failed to download image from URL: {response.status_code}'
                 }))
-                response.headers['Content-Type'] = 'application/json'
-                response.status_code = 400
-                return response
+                error_response.headers['Content-Type'] = 'application/json'
+                error_response.status_code = 400
+                logger.debug(f"Returning error response: {error_response.get_data(as_text=True)}")
+                return error_response
         else:
-            response = make_response(json.dumps({
+            error_response = make_response(json.dumps({
                 'error': 'No photo or photo_url provided'
             }))
-            response.headers['Content-Type'] = 'application/json'
-            response.status_code = 400
-            return response
+            error_response.headers['Content-Type'] = 'application/json'
+            error_response.status_code = 400
+            logger.debug(f"Returning error response: {error_response.get_data(as_text=True)}")
+            return error_response
             
         # Создаем объект изображения из данных
         img_buffer = io.BytesIO(image_data)
@@ -278,7 +287,7 @@ def resize_images():
             x = PHOTO_MARGIN_LEFT + col * (img_width + PHOTO_GAP_HORIZONTAL)
             y = PHOTO_MARGIN_TOP + row * (img_height + PHOTO_GAP_VERTICAL)
             canvas.paste(img, (x, y))
-            logger.info(f"Placed photo {i+1} at position ({x}, {y})")
+            logger.debug(f"Placed photo {i+1} at position ({x}, {y})")
 
         # Добавляем логотип и подпись
         add_logo_and_signature(canvas, bottom_photo_y, img_height)
@@ -293,12 +302,13 @@ def resize_images():
             # Проверяем права на запись
             if not os.access(os.path.dirname(filepath), os.W_OK):
                 logger.error(f"No write access to directory: {os.path.dirname(filepath)}")
-                response = make_response(json.dumps({
+                error_response = make_response(json.dumps({
                     'error': 'No write access to results directory'
                 }))
-                response.headers['Content-Type'] = 'application/json'
-                response.status_code = 500
-                return response
+                error_response.headers['Content-Type'] = 'application/json'
+                error_response.status_code = 500
+                logger.debug(f"Returning error response: {error_response.get_data(as_text=True)}")
+                return error_response
             
             # Сохраняем результат
             canvas.save(filepath, format='JPEG', quality=95)
@@ -309,31 +319,34 @@ def resize_images():
             logger.info(f"Generated public URL: {public_url}")
             
             # Создаем ответ
-            response = make_response(json.dumps({
+            success_response = make_response(json.dumps({
                 'url': public_url,
                 'status': 'success',
                 'filepath': filepath
             }))
-            response.headers['Content-Type'] = 'application/json'
-            return response
+            success_response.headers['Content-Type'] = 'application/json'
+            logger.debug(f"Returning success response: {success_response.get_data(as_text=True)}")
+            return success_response
 
         except Exception as e:
             logger.error(f"Error saving file: {str(e)}")
-            response = make_response(json.dumps({
+            error_response = make_response(json.dumps({
                 'error': f'Failed to save file: {str(e)}'
             }))
-            response.headers['Content-Type'] = 'application/json'
-            response.status_code = 500
-            return response
+            error_response.headers['Content-Type'] = 'application/json'
+            error_response.status_code = 500
+            logger.debug(f"Returning error response: {error_response.get_data(as_text=True)}")
+            return error_response
 
     except Exception as e:
         logger.error(f"Error processing image: {str(e)}")
-        response = make_response(json.dumps({
+        error_response = make_response(json.dumps({
             'error': str(e)
         }))
-        response.headers['Content-Type'] = 'application/json'
-        response.status_code = 500
-        return response
+        error_response.headers['Content-Type'] = 'application/json'
+        error_response.status_code = 500
+        logger.debug(f"Returning error response: {error_response.get_data(as_text=True)}")
+        return error_response
 
 @app.route('/results/<filename>')
 def get_result(filename):
@@ -353,11 +366,14 @@ def get_result(filename):
         response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
+        logger.debug(f"Returning file response with headers: {dict(response.headers)}")
         return response
         
     except Exception as e:
         logger.error(f"Error serving result file: {str(e)}")
-        return jsonify({'error': f'Error serving file: {str(e)}'}), 500
+        error_response = make_response(jsonify({'error': f'Error serving file: {str(e)}'}))
+        logger.debug(f"Returning error response: {error_response.get_data(as_text=True)}")
+        return error_response, 500
 
 @app.after_request
 def after_request(response):
