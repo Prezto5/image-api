@@ -1,26 +1,96 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_file
+from PIL import Image
+import io
+import logging
 import os
+import uuid
 
 app = Flask(__name__)
+
+# Настройка логирования
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+# Константы
+UPLOAD_FOLDER = '/app/uploads'
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 @app.route('/')
 def index():
     return jsonify({
-        'message': 'Hello from Flask!',
-        'version': '1.0'
+        'message': 'Image Processing API',
+        'version': '1.0',
+        'endpoints': {
+            'resize': '/resize (POST)',
+            'image': '/image/<filename> (GET)'
+        }
     })
 
 @app.route('/resize', methods=['POST'])
 def resize_image():
-    if 'photo' not in request.files:
-        return jsonify({
-            'error': 'No file provided'
-        }), 400
+    try:
+        logger.debug("Получен запрос на /resize")
         
-    return jsonify({
-        'message': 'Test response from /resize endpoint',
-        'received_file': True
-    })
+        if 'photo' not in request.files:
+            logger.error("Файл не найден в запросе")
+            return jsonify({'error': 'No file provided'}), 400
+            
+        photo = request.files['photo']
+        logger.debug(f"Получен файл: {photo.filename}")
+        
+        # Открываем изображение
+        img = Image.open(photo)
+        logger.debug(f"Изображение открыто, размер: {img.size}")
+        
+        # Создаем новое изображение с белым фоном
+        background = Image.new('RGB', (800, 600), 'white')
+        
+        # Изменяем размер изображения с сохранением пропорций
+        img.thumbnail((700, 500))
+        
+        # Вычисляем позицию для центрирования
+        x = (800 - img.width) // 2
+        y = (600 - img.height) // 2
+        
+        # Вставляем изображение на фон
+        background.paste(img, (x, y))
+        
+        # Генерируем уникальное имя файла
+        filename = f"{uuid.uuid4()}.jpg"
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+        
+        # Сохраняем файл
+        background.save(filepath, 'JPEG')
+        logger.debug(f"Файл сохранен как {filepath}")
+        
+        # Формируем URL
+        url = f"/image/{filename}"
+        
+        return jsonify({
+            'success': True,
+            'message': 'Image processed successfully',
+            'data': {
+                'url': url,
+                'width': background.width,
+                'height': background.height,
+                'original_size': img.size
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Ошибка при обработке изображения: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/image/<filename>')
+def get_image(filename):
+    try:
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+        if not os.path.exists(filepath):
+            return jsonify({'error': 'File not found'}), 404
+        return send_file(filepath, mimetype='image/jpeg')
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
