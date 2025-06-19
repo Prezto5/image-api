@@ -38,9 +38,22 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Константы для путей
-RESULTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results')
-if not os.path.exists(RESULTS_DIR):
-    os.makedirs(RESULTS_DIR)
+RESULTS_DIR = '/app/results'  # Изменено на абсолютный путь в корне контейнера
+logger.info(f"Results directory path: {RESULTS_DIR}")
+
+try:
+    if not os.path.exists(RESULTS_DIR):
+        os.makedirs(RESULTS_DIR, mode=0o777)
+        logger.info(f"Created results directory at {RESULTS_DIR}")
+    else:
+        logger.info(f"Results directory already exists at {RESULTS_DIR}")
+except Exception as e:
+    logger.error(f"Error creating results directory: {str(e)}")
+    # Попробуем создать в текущей директории
+    RESULTS_DIR = os.path.join(os.getcwd(), 'results')
+    logger.info(f"Falling back to current directory: {RESULTS_DIR}")
+    if not os.path.exists(RESULTS_DIR):
+        os.makedirs(RESULTS_DIR, mode=0o777)
 
 # Константы для холста
 CANVAS_HEIGHT = 1958  # высота холста
@@ -146,20 +159,34 @@ def resize_images():
         add_logo_and_signature(canvas, bottom_photo_y, img_height)
         logger.info("Added logo and signature")
 
-        # Генерируем уникальное имя файла
-        filename = f"{uuid.uuid4()}.jpg"
-        filepath = os.path.join(RESULTS_DIR, filename)
-        
-        # Сохраняем результат
-        canvas.save(filepath, format='JPEG', quality=95)
-        logger.info(f"Saved result to {filepath}")
-        
-        # Формируем публичный URL
-        public_url = f"https://imageapi-nrkypima.b4a.run/results/{filename}"
-        
-        return jsonify({
-            'url': public_url
-        })
+        try:
+            # Генерируем уникальное имя файла
+            filename = f"{uuid.uuid4()}.jpg"
+            filepath = os.path.join(RESULTS_DIR, filename)
+            logger.info(f"Saving file to: {filepath}")
+            
+            # Проверяем права на запись
+            if not os.access(os.path.dirname(filepath), os.W_OK):
+                logger.error(f"No write access to directory: {os.path.dirname(filepath)}")
+                return {'error': 'No write access to results directory'}, 500
+            
+            # Сохраняем результат
+            canvas.save(filepath, format='JPEG', quality=95)
+            logger.info(f"Successfully saved result to {filepath}")
+            
+            # Формируем публичный URL
+            public_url = f"https://imageapi-nrkypima.b4a.run/results/{filename}"
+            logger.info(f"Generated public URL: {public_url}")
+            
+            return jsonify({
+                'url': public_url,
+                'status': 'success',
+                'filepath': filepath  # Добавляем для отладки
+            })
+
+        except Exception as e:
+            logger.error(f"Error saving file: {str(e)}")
+            return {'error': f'Failed to save file: {str(e)}'}, 500
 
     except Exception as e:
         logger.error(f"Error processing image: {str(e)}")
@@ -169,13 +196,24 @@ def resize_images():
 @app.route('/results/<filename>')
 def get_result(filename):
     try:
+        filepath = os.path.join(RESULTS_DIR, filename)
+        logger.info(f"Requested file: {filepath}")
+        
+        if not os.path.exists(filepath):
+            logger.error(f"File not found: {filepath}")
+            return {'error': 'File not found'}, 404
+            
+        if not os.access(filepath, os.R_OK):
+            logger.error(f"No read access to file: {filepath}")
+            return {'error': 'No read access to file'}, 403
+            
         return send_file(
-            os.path.join(RESULTS_DIR, filename),
+            filepath,
             mimetype='image/jpeg'
         )
     except Exception as e:
         logger.error(f"Error serving result file: {str(e)}")
-        return {'error': 'File not found'}, 404
+        return {'error': f'Error serving file: {str(e)}'}, 500
 
 @app.after_request
 def after_request(response):
@@ -186,4 +224,8 @@ def after_request(response):
     return response
 
 if __name__ == '__main__':
+    # Выводим информацию о текущей директории и правах доступа при запуске
+    logger.info(f"Current working directory: {os.getcwd()}")
+    logger.info(f"Results directory: {RESULTS_DIR}")
+    logger.info(f"Can write to results directory: {os.access(RESULTS_DIR, os.W_OK)}")
     app.run(host='0.0.0.0', port=80) 
