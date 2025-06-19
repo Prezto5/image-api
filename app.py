@@ -10,6 +10,7 @@ import parse
 from parse.connection import register
 import uuid
 import json
+from functools import wraps
 
 # Конфигурация Back4App
 BACK4APP_CONFIG = {
@@ -107,7 +108,25 @@ def add_logo_and_signature(canvas, bottom_photo_y, photo_height):
         logger.error(f"Error adding logo and signature: {str(e)}")
         raise
 
+def force_json_response(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        response = f(*args, **kwargs)
+        # Если ответ уже является кортежем (response, status_code)
+        if isinstance(response, tuple):
+            data, status_code = response
+            response = jsonify(data)
+            response.status_code = status_code
+        # Если ответ является словарем
+        elif isinstance(response, dict):
+            response = jsonify(response)
+        # Принудительно устанавливаем тип контента
+        response.headers['Content-Type'] = 'application/json'
+        return response
+    return decorated_function
+
 @app.route('/resize', methods=['POST'])
+@force_json_response
 def resize_images():
     try:
         image_data = None
@@ -123,9 +142,9 @@ def resize_images():
             if response.status_code == 200:
                 image_data = response.content
             else:
-                return jsonify({'error': f'Failed to download image from URL: {response.status_code}'}), 400
+                return {'error': f'Failed to download image from URL: {response.status_code}'}, 400
         else:
-            return jsonify({'error': 'No photo or photo_url provided'}), 400
+            return {'error': 'No photo or photo_url provided'}, 400
             
         # Создаем объект изображения из данных
         img_buffer = io.BytesIO(image_data)
@@ -162,7 +181,7 @@ def resize_images():
             # Проверяем права на запись
             if not os.access(os.path.dirname(filepath), os.W_OK):
                 logger.error(f"No write access to directory: {os.path.dirname(filepath)}")
-                return jsonify({'error': 'No write access to results directory'}), 500
+                return {'error': 'No write access to results directory'}, 500
             
             # Сохраняем результат
             canvas.save(filepath, format='JPEG', quality=95)
@@ -172,20 +191,19 @@ def resize_images():
             public_url = f"https://imageapi-nrkypima.b4a.run/results/{filename}"
             logger.info(f"Generated public URL: {public_url}")
             
-            # Возвращаем только JSON
-            return jsonify({
+            return {
                 'url': public_url,
                 'status': 'success',
                 'filepath': filepath
-            })
+            }
 
         except Exception as e:
             logger.error(f"Error saving file: {str(e)}")
-            return jsonify({'error': f'Failed to save file: {str(e)}'}), 500
+            return {'error': f'Failed to save file: {str(e)}'}, 500
 
     except Exception as e:
         logger.error(f"Error processing image: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return {'error': str(e)}, 500
 
 @app.route('/results/<filename>')
 def get_result(filename):
