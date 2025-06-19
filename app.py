@@ -4,6 +4,8 @@ import io
 import logging
 import os
 import uuid
+import requests
+from urllib.parse import urlparse
 
 app = Flask(__name__)
 
@@ -32,15 +34,23 @@ def resize_image():
     try:
         logger.debug("Получен запрос на /resize")
         
-        if 'photo' not in request.files:
-            logger.error("Файл не найден в запросе")
-            return jsonify({'error': 'No file provided'}), 400
+        # Проверяем, получили ли мы URL изображения
+        photo_url = request.form.get('photo_url')
+        if photo_url:
+            logger.debug(f"Получен URL изображения: {photo_url}")
+            # Загружаем изображение по URL
+            response = requests.get(photo_url)
+            if response.status_code != 200:
+                return jsonify({'error': 'Failed to download image from URL'}), 400
+            img = Image.open(io.BytesIO(response.content))
+        elif 'photo' in request.files:
+            photo = request.files['photo']
+            logger.debug(f"Получен файл: {photo.filename}")
+            img = Image.open(photo)
+        else:
+            logger.error("Ни файл, ни URL не предоставлены")
+            return jsonify({'error': 'No file or URL provided'}), 400
             
-        photo = request.files['photo']
-        logger.debug(f"Получен файл: {photo.filename}")
-        
-        # Открываем изображение
-        img = Image.open(photo)
         logger.debug(f"Изображение открыто, размер: {img.size}")
         
         # Создаем новое изображение с белым фоном
