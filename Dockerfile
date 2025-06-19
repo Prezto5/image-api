@@ -29,8 +29,11 @@ RUN apt-get update && apt-get install -y \
 # Копируем путь к шрифту в переменную окружения
 ENV FONT_PATH=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
 
+# Переменная окружения для порта
+ENV PORT=8080
+
 # Открываем порт
-EXPOSE 8080
+EXPOSE ${PORT}
 
 # Запускаем приложение через gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "app:app"] 
+CMD gunicorn --bind 0.0.0.0:${PORT} app:app 

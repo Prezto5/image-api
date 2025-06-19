@@ -1,7 +1,8 @@
-from flask import Flask, jsonify, send_file
+from flask import Flask, jsonify, send_file, request
 from PIL import Image
 import io
 import logging
+import os
 
 app = Flask(__name__)
 
@@ -35,7 +36,7 @@ def resize_image():
         img_io.seek(0)
         logger.debug("Изображение сохранено в буфер")
         
-        # Возвращаем JSON с URL
+        # Возвращаем JSON с информацией
         return jsonify({
             'success': True,
             'message': 'Image resized successfully',
@@ -60,4 +61,5 @@ def get_image(filename):
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080) 
+    port = int(os.environ.get('PORT', 8080))
+    app.run(host='0.0.0.0', port=port) 
