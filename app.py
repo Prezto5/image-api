@@ -31,8 +31,8 @@ def resize_image():
         # Отступы
         left_margin = 85
         top_margin = 83
-        col_gap = 86
-        row_gap = 134
+        col_gap = 166
+        row_gap = 166
         # Считаем координаты для 6 фото (3x2)
         positions = []
         for row in range(2):
@@ -62,7 +62,7 @@ def resize_image():
         img_bytes = io.BytesIO()
         canvas.save(img_bytes, format='PNG')
         img_bytes.seek(0)
-        print(f"[INFO] 6 images placed on canvas {canvas_w}x{canvas_h} as in Figma layout (W x H)", file=sys.stderr)
+        print(f"[INFO] 6 images placed on canvas {canvas_w}x{canvas_h} with 166px gaps", file=sys.stderr)
         return send_file(img_bytes, mimetype='image/png')
     except Exception as e:
         print(f"[ERROR] Exception: {str(e)}", file=sys.stderr)
