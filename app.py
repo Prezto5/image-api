@@ -5,6 +5,7 @@ import logging
 import os
 import sys
 from flask_cors import CORS
+import requests
 
 app = Flask(__name__)
 CORS(app)
@@ -71,20 +72,34 @@ def add_logo_and_signature(canvas, bottom_photo_y, photo_height):
 @app.route('/resize', methods=['POST'])
 def resize_images():
     try:
-        if 'photo' not in request.files:
-            return {'error': 'No photo provided'}, 400
+        image_data = None
+        
+        if 'photo' in request.files:
+            # Получаем изображение из файла
+            photo = request.files['photo']
+            image_data = photo.read()
+            logger.info(f"Received photo from file: {photo.filename}")
+        elif 'photo_url' in request.form:
+            # Получаем изображение по URL
+            photo_url = request.form['photo_url']
+            logger.info(f"Downloading photo from URL: {photo_url}")
+            response = requests.get(photo_url)
+            if response.status_code == 200:
+                image_data = response.content
+            else:
+                return {'error': f'Failed to download image from URL: {response.status_code}'}, 400
+        else:
+            return {'error': 'No photo or photo_url provided'}, 400
             
-        photo = request.files['photo']
-        logger.info(f"Received photo: {photo.filename}")
-        
-        # Создаем белый холст
-        canvas = Image.new('RGB', (CANVAS_WIDTH, CANVAS_HEIGHT), 'white')
-        
-        # Открываем фото
-        img = Image.open(photo).convert('RGB')
+        # Создаем объект изображения из данных
+        img_buffer = io.BytesIO(image_data)
+        img = Image.open(img_buffer).convert('RGB')
         img_width = img.width
         img_height = img.height
         logger.info(f"Image dimensions: {img_width}x{img_height}")
+        
+        # Создаем белый холст
+        canvas = Image.new('RGB', (CANVAS_WIDTH, CANVAS_HEIGHT), 'white')
         
         # Вычисляем Y-координату нижнего ряда фотографий
         bottom_photo_y = calculate_bottom_photo_y(img_height)
