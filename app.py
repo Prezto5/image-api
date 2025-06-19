@@ -23,41 +23,46 @@ def resize_image():
         if img.format not in allowed_formats:
             print(f"[ERROR] Unsupported format: {img.format}", file=sys.stderr)
             return {"error": "Unsupported format"}, 415
-        # Параметры холста и фото
+        # Жёстко заданные параметры по макету
         canvas_w, canvas_h = 1958, 1785
-        rows, cols = 2, 3
+        photo_w, photo_h = 413, 531
         border = 2
         border_color = (198, 198, 198)  # C6C6C6
-        margin = 20  # минимальный отступ по краям и между фото
-        # Вычисляем размер фото с учётом рамки и равномерных отступов
-        photo_w = (canvas_w - (cols + 1) * margin) // cols
-        photo_h = (canvas_h - (rows + 1) * margin) // rows
+        # Отступы
+        left_margin = 85
+        top_margin = 83
+        col_gap = 86
+        row_gap = 134
+        # Считаем координаты для 6 фото (3x2)
+        positions = []
+        for row in range(2):
+            for col in range(3):
+                x = left_margin + col * (photo_w + col_gap)
+                y = top_margin + row * (photo_h + row_gap)
+                positions.append((x, y))
         # Подгоняем фото под размер
         img = img.convert('RGB')
         img = img.copy()
         img.thumbnail((photo_w - 2*border, photo_h - 2*border))
         # Создаём холст
         canvas = Image.new('RGB', (canvas_w, canvas_h), (255, 255, 255))
-        for row in range(rows):
-            for col in range(cols):
-                x0 = margin + col * (photo_w + margin)
-                y0 = margin + row * (photo_h + margin)
-                # Создаём ячейку для фото с рамкой
-                frame = Image.new('RGB', (photo_w, photo_h), (255, 255, 255))
-                # Центрируем фото внутри рамки
-                px = (photo_w - img.width) // 2
-                py = (photo_h - img.height) // 2
-                frame.paste(img, (px, py))
-                # Рисуем рамку
-                draw = ImageDraw.Draw(frame)
-                for b in range(border):
-                    draw.rectangle([b, b, photo_w-1-b, photo_h-1-b], outline=border_color)
-                # Вставляем на холст
-                canvas.paste(frame, (x0, y0))
+        for x, y in positions:
+            # Ячейка для фото с рамкой
+            frame = Image.new('RGB', (photo_w, photo_h), (255, 255, 255))
+            # Центрируем фото внутри рамки
+            px = (photo_w - img.width) // 2
+            py = (photo_h - img.height) // 2
+            frame.paste(img, (px, py))
+            # Рисуем рамку
+            draw = ImageDraw.Draw(frame)
+            for b in range(border):
+                draw.rectangle([b, b, photo_w-1-b, photo_h-1-b], outline=border_color)
+            # Вставляем на холст
+            canvas.paste(frame, (x, y))
         img_bytes = io.BytesIO()
         canvas.save(img_bytes, format='PNG')
         img_bytes.seek(0)
-        print(f"[INFO] 6 images placed on canvas {canvas_w}x{canvas_h} with margin {margin}", file=sys.stderr)
+        print(f"[INFO] 6 images placed on canvas {canvas_w}x{canvas_h} as in Figma layout", file=sys.stderr)
         return send_file(img_bytes, mimetype='image/png')
     except Exception as e:
         print(f"[ERROR] Exception: {str(e)}", file=sys.stderr)
