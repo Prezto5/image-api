@@ -28,9 +28,10 @@ def resize_image():
         rows, cols = 2, 3
         border = 2
         border_color = (198, 198, 198)  # C6C6C6
-        # Размер фото с учётом рамки и отступов
-        photo_w = (canvas_w - (cols + 1) * 40) // cols  # 40px отступы между фото и по краям
-        photo_h = (canvas_h - (rows + 1) * 40) // rows
+        margin = 20  # минимальный отступ по краям и между фото
+        # Вычисляем размер фото с учётом рамки и равномерных отступов
+        photo_w = (canvas_w - (cols + 1) * margin) // cols
+        photo_h = (canvas_h - (rows + 1) * margin) // rows
         # Подгоняем фото под размер
         img = img.convert('RGB')
         img = img.copy()
@@ -39,11 +40,11 @@ def resize_image():
         canvas = Image.new('RGB', (canvas_w, canvas_h), (255, 255, 255))
         for row in range(rows):
             for col in range(cols):
-                x0 = 40 + col * (photo_w + 40)
-                y0 = 40 + row * (photo_h + 40)
-                # Центрируем фото внутри рамки
+                x0 = margin + col * (photo_w + margin)
+                y0 = margin + row * (photo_h + margin)
+                # Создаём ячейку для фото с рамкой
                 frame = Image.new('RGB', (photo_w, photo_h), (255, 255, 255))
-                # Вставляем фото по центру
+                # Центрируем фото внутри рамки
                 px = (photo_w - img.width) // 2
                 py = (photo_h - img.height) // 2
                 frame.paste(img, (px, py))
@@ -56,7 +57,7 @@ def resize_image():
         img_bytes = io.BytesIO()
         canvas.save(img_bytes, format='PNG')
         img_bytes.seek(0)
-        print(f"[INFO] 6 images placed on canvas {canvas_w}x{canvas_h}", file=sys.stderr)
+        print(f"[INFO] 6 images placed on canvas {canvas_w}x{canvas_h} with margin {margin}", file=sys.stderr)
         return send_file(img_bytes, mimetype='image/png')
     except Exception as e:
         print(f"[ERROR] Exception: {str(e)}", file=sys.stderr)
