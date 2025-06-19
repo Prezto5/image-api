@@ -4,8 +4,10 @@ import io
 import logging
 import os
 import sys
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 
 # Настройка логирования
 logging.basicConfig(
@@ -111,6 +113,14 @@ def resize_images():
     except Exception as e:
         logger.error(f"Error processing image: {str(e)}")
         return {'error': str(e)}, 500
+
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+    response.headers.add('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    response.headers.add('User-Agent', 'PhotoAPI/1.0')
+    return response
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=80) 
