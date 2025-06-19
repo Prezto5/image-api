@@ -228,6 +228,137 @@ def get_image(filename):
         logger.error(f"Error serving result file: {str(e)}")
         return jsonify({'error': f'Error serving file: {str(e)}'}), 500
 
+@app.route('/resize', methods=['POST'])
+def resize_images():
+    try:
+        image_data = None
+        
+        if 'photo' in request.files:
+            photo = request.files['photo']
+            image_data = photo.read()
+            logger.info(f"Received photo from file: {photo.filename}")
+        elif 'photo_url' in request.form:
+            photo_url = request.form['photo_url']
+            logger.info(f"Downloading photo from URL: {photo_url}")
+            response = requests.get(photo_url)
+            if response.status_code == 200:
+                image_data = response.content
+            else:
+                response = make_response(json.dumps({
+                    'error': f'Failed to download image from URL: {response.status_code}'
+                }))
+                response.headers['Content-Type'] = 'application/json'
+                response.status_code = 400
+                return response
+        else:
+            response = make_response(json.dumps({
+                'error': 'No photo or photo_url provided'
+            }))
+            response.headers['Content-Type'] = 'application/json'
+            response.status_code = 400
+            return response
+            
+        # Создаем объект изображения из данных
+        img_buffer = io.BytesIO(image_data)
+        img = Image.open(img_buffer).convert('RGB')
+        img_width = img.width
+        img_height = img.height
+        logger.info(f"Image dimensions: {img_width}x{img_height}")
+        
+        # Создаем белый холст
+        canvas = Image.new('RGB', (CANVAS_WIDTH, CANVAS_HEIGHT), 'white')
+        
+        # Вычисляем Y-координату нижнего ряда фотографий
+        bottom_photo_y = calculate_bottom_photo_y(img_height)
+        
+        # Размещаем фотографии на холсте
+        for i in range(6):
+            row = i // 3
+            col = i % 3
+            x = PHOTO_MARGIN_LEFT + col * (img_width + PHOTO_GAP_HORIZONTAL)
+            y = PHOTO_MARGIN_TOP + row * (img_height + PHOTO_GAP_VERTICAL)
+            canvas.paste(img, (x, y))
+            logger.info(f"Placed photo {i+1} at position ({x}, {y})")
+
+        # Добавляем логотип и подпись
+        add_logo_and_signature(canvas, bottom_photo_y, img_height)
+        logger.info("Added logo and signature")
+
+        try:
+            # Генерируем уникальное имя файла
+            filename = f"{uuid.uuid4()}.jpg"
+            filepath = os.path.join(RESULTS_DIR, filename)
+            logger.info(f"Saving file to: {filepath}")
+            
+            # Проверяем права на запись
+            if not os.access(os.path.dirname(filepath), os.W_OK):
+                logger.error(f"No write access to directory: {os.path.dirname(filepath)}")
+                response = make_response(json.dumps({
+                    'error': 'No write access to results directory'
+                }))
+                response.headers['Content-Type'] = 'application/json'
+                response.status_code = 500
+                return response
+            
+            # Сохраняем результат
+            canvas.save(filepath, format='JPEG', quality=95)
+            logger.info(f"Successfully saved result to {filepath}")
+            
+            # Формируем публичный URL
+            public_url = f"https://imageapi-nrkypima.b4a.run/results/{filename}"
+            logger.info(f"Generated public URL: {public_url}")
+            
+            # Создаем ответ
+            response = make_response(json.dumps({
+                'url': public_url,
+                'status': 'success',
+                'filepath': filepath
+            }))
+            response.headers['Content-Type'] = 'application/json'
+            return response
+
+        except Exception as e:
+            logger.error(f"Error saving file: {str(e)}")
+            response = make_response(json.dumps({
+                'error': f'Failed to save file: {str(e)}'
+            }))
+            response.headers['Content-Type'] = 'application/json'
+            response.status_code = 500
+            return response
+
+    except Exception as e:
+        logger.error(f"Error processing image: {str(e)}")
+        response = make_response(json.dumps({
+            'error': str(e)
+        }))
+        response.headers['Content-Type'] = 'application/json'
+        response.status_code = 500
+        return response
+
+@app.route('/results/<filename>')
+def get_result(filename):
+    try:
+        filepath = os.path.join(RESULTS_DIR, filename)
+        logger.info(f"Requested file: {filepath}")
+        
+        if not os.path.exists(filepath):
+            logger.error(f"File not found: {filepath}")
+            return jsonify({'error': 'File not found'}), 404
+            
+        if not os.access(filepath, os.R_OK):
+            logger.error(f"No read access to file: {filepath}")
+            return jsonify({'error': 'No read access to file'}), 403
+            
+        response = make_response(send_file(filepath, mimetype='image/jpeg'))
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error serving result file: {str(e)}")
+        return jsonify({'error': f'Error serving file: {str(e)}'}), 500
+
 @app.after_request
 def after_request(response):
     response.headers.add('Access-Control-Allow-Origin', '*')
