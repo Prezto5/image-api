@@ -1,4 +1,4 @@
-from flask import Flask, request, send_file
+from flask import Flask, request, send_file, jsonify
 from PIL import Image
 import io
 import logging
@@ -6,9 +6,28 @@ import os
 import sys
 from flask_cors import CORS
 import requests
+import parse
+from parse.connection import register
+import uuid
+
+# Конфигурация Back4App
+BACK4APP_CONFIG = {
+    'APP_ID': os.getenv('BACK4APP_APP_ID'),
+    'CLIENT_KEY': os.getenv('BACK4APP_CLIENT_KEY'),
+    'MASTER_KEY': os.getenv('BACK4APP_MASTER_KEY'),
+    'SERVER_URL': 'https://parseapi.back4app.com'
+}
 
 app = Flask(__name__)
 CORS(app)
+
+# Настройка Parse
+parse.initialize(
+    BACK4APP_CONFIG['APP_ID'],
+    BACK4APP_CONFIG['CLIENT_KEY'],
+    master_key=BACK4APP_CONFIG['MASTER_KEY']
+)
+parse.serverURL = BACK4APP_CONFIG['SERVER_URL']
 
 # Настройка логирования
 logging.basicConfig(
@@ -17,6 +36,11 @@ logging.basicConfig(
     stream=sys.stdout
 )
 logger = logging.getLogger(__name__)
+
+# Константы для путей
+RESULTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results')
+if not os.path.exists(RESULTS_DIR):
+    os.makedirs(RESULTS_DIR)
 
 # Константы для холста
 CANVAS_HEIGHT = 1958  # высота холста
@@ -122,27 +146,36 @@ def resize_images():
         add_logo_and_signature(canvas, bottom_photo_y, img_height)
         logger.info("Added logo and signature")
 
+        # Генерируем уникальное имя файла
+        filename = f"{uuid.uuid4()}.jpg"
+        filepath = os.path.join(RESULTS_DIR, filename)
+        
         # Сохраняем результат
-        output = io.BytesIO()
-        canvas.save(output, format='JPEG', quality=95)
-        output.seek(0)
+        canvas.save(filepath, format='JPEG', quality=95)
+        logger.info(f"Saved result to {filepath}")
         
-        # Сохраняем копию для отладки
-        canvas.save('debug_result.jpg', format='JPEG', quality=95)
-        logger.info("Saved debug copy to debug_result.jpg")
+        # Формируем публичный URL
+        public_url = f"https://imageapi-nrkypima.b4a.run/results/{filename}"
         
-        response = send_file(
-            output,
-            mimetype='image/jpeg',
-            as_attachment=True,
-            download_name='result.jpg'
-        )
-        logger.info("Sending response")
-        return response
+        return jsonify({
+            'url': public_url
+        })
 
     except Exception as e:
         logger.error(f"Error processing image: {str(e)}")
         return {'error': str(e)}, 500
+
+# Добавляем маршрут для доступа к результатам
+@app.route('/results/<filename>')
+def get_result(filename):
+    try:
+        return send_file(
+            os.path.join(RESULTS_DIR, filename),
+            mimetype='image/jpeg'
+        )
+    except Exception as e:
+        logger.error(f"Error serving result file: {str(e)}")
+        return {'error': 'File not found'}, 404
 
 @app.after_request
 def after_request(response):
