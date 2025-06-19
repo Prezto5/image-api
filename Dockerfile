@@ -2,10 +2,15 @@ FROM python:3.11-slim
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY . .
 
-# Создаем директорию assets если она не существует
+# Создаем директорию assets
 RUN mkdir -p assets
+
+# Копируем ассеты отдельно
+COPY assets/* assets/
+
+# Копируем остальные файлы приложения
+COPY app.py .
 
 # Устанавливаем шрифт DejaVu Sans (стандартный шрифт, который часто доступен в Linux)
 RUN apt-get update && apt-get install -y \
