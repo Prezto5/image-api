@@ -123,9 +123,9 @@ def resize_images():
             if response.status_code == 200:
                 image_data = response.content
             else:
-                return make_response(jsonify({'error': f'Failed to download image from URL: {response.status_code}'}), 400)
+                return jsonify({'error': f'Failed to download image from URL: {response.status_code}'}), 400
         else:
-            return make_response(jsonify({'error': 'No photo or photo_url provided'}), 400)
+            return jsonify({'error': 'No photo or photo_url provided'}), 400
             
         # Создаем объект изображения из данных
         img_buffer = io.BytesIO(image_data)
@@ -162,7 +162,7 @@ def resize_images():
             # Проверяем права на запись
             if not os.access(os.path.dirname(filepath), os.W_OK):
                 logger.error(f"No write access to directory: {os.path.dirname(filepath)}")
-                return make_response(jsonify({'error': 'No write access to results directory'}), 500)
+                return jsonify({'error': 'No write access to results directory'}), 500
             
             # Сохраняем результат
             canvas.save(filepath, format='JPEG', quality=95)
@@ -172,24 +172,20 @@ def resize_images():
             public_url = f"https://imageapi-nrkypima.b4a.run/results/{filename}"
             logger.info(f"Generated public URL: {public_url}")
             
-            # Создаем и возвращаем ответ
-            response_data = {
+            # Возвращаем только JSON
+            return jsonify({
                 'url': public_url,
                 'status': 'success',
                 'filepath': filepath
-            }
-            
-            response = make_response(json.dumps(response_data))
-            response.headers['Content-Type'] = 'application/json'
-            return response
+            })
 
         except Exception as e:
             logger.error(f"Error saving file: {str(e)}")
-            return make_response(jsonify({'error': f'Failed to save file: {str(e)}'}), 500)
+            return jsonify({'error': f'Failed to save file: {str(e)}'}), 500
 
     except Exception as e:
         logger.error(f"Error processing image: {str(e)}")
-        return make_response(jsonify({'error': str(e)}), 500)
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/results/<filename>')
 def get_result(filename):
@@ -199,12 +195,13 @@ def get_result(filename):
         
         if not os.path.exists(filepath):
             logger.error(f"File not found: {filepath}")
-            return make_response(jsonify({'error': 'File not found'}), 404)
+            return jsonify({'error': 'File not found'}), 404
             
         if not os.access(filepath, os.R_OK):
             logger.error(f"No read access to file: {filepath}")
-            return make_response(jsonify({'error': 'No read access to file'}), 403)
+            return jsonify({'error': 'No read access to file'}), 403
             
+        # Отправляем файл с правильными заголовками
         response = make_response(send_file(filepath, mimetype='image/jpeg'))
         response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
         response.headers['Pragma'] = 'no-cache'
@@ -213,7 +210,7 @@ def get_result(filename):
         
     except Exception as e:
         logger.error(f"Error serving result file: {str(e)}")
-        return make_response(jsonify({'error': f'Error serving file: {str(e)}'}), 500)
+        return jsonify({'error': f'Error serving file: {str(e)}'}), 500
 
 @app.after_request
 def after_request(response):
