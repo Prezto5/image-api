@@ -16,20 +16,20 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Константы для холста
-CANVAS_WIDTH = 1958
-CANVAS_HEIGHT = 1785
+CANVAS_HEIGHT = 1958  # высота холста
+CANVAS_WIDTH = 1785   # ширина холста
 
 # Отступы для фотографий
 PHOTO_MARGIN_LEFT = 107  # отступ слева
 PHOTO_MARGIN_TOP = 85    # отступ сверху
-PHOTO_MARGIN_BOTTOM = 97 # отступ между рядами
-PHOTO_GAP = 166         # отступ между фото
+PHOTO_GAP_HORIZONTAL = 166  # отступ между фото по горизонтали
+PHOTO_GAP_VERTICAL = 252    # отступ между фото по вертикали
 
 # Отступы для лого и подписи
-LEFT_MARGIN = 369  # отступ слева для лого
-BOTTOM_MARGIN = 206  # отступ снизу для лого
-RIGHT_TEXT_MARGIN = 144  # отступ справа от лого до текста
-BOTTOM_TEXT_MARGIN = 265  # отступ снизу для текста
+LOGO_MARGIN_LEFT = 462    # отступ слева для лого
+LOGO_MARGIN_BOTTOM = 271  # отступ снизу для лого
+TEXT_MARGIN_LEFT = 144    # отступ между лого и текстом
+TEXT_MARGIN_BOTTOM = 330  # отступ снизу для текста
 
 # Получаем абсолютный путь к директории приложения
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -44,7 +44,7 @@ def add_logo_and_signature(canvas):
             logo = logo.convert('RGBA')
             
         # Размещаем логотип с учетом отступов слева и снизу
-        logo_pos = (LEFT_MARGIN, CANVAS_HEIGHT - logo.height - BOTTOM_MARGIN)
+        logo_pos = (LOGO_MARGIN_LEFT, CANVAS_HEIGHT - logo.height - LOGO_MARGIN_BOTTOM)
         canvas.paste(logo, logo_pos, logo)
         
         # Загрузка подписи
@@ -53,8 +53,8 @@ def add_logo_and_signature(canvas):
             signature = signature.convert('RGBA')
             
         # Размещаем подпись справа от логотипа
-        signature_x = logo_pos[0] + logo.width + RIGHT_TEXT_MARGIN
-        signature_y = CANVAS_HEIGHT - signature.height - BOTTOM_TEXT_MARGIN
+        signature_x = logo_pos[0] + logo.width + TEXT_MARGIN_LEFT
+        signature_y = CANVAS_HEIGHT - signature.height - TEXT_MARGIN_BOTTOM
         canvas.paste(signature, (signature_x, signature_y), signature)
         
     except Exception as e:
@@ -84,8 +84,8 @@ def resize_images():
             col = i % 3
             
             # Вычисляем координаты для размещения фото
-            x = PHOTO_MARGIN_LEFT + col * (img.width + PHOTO_GAP)
-            y = PHOTO_MARGIN_TOP + row * (img.height + PHOTO_MARGIN_BOTTOM)
+            x = PHOTO_MARGIN_LEFT + col * (img.width + PHOTO_GAP_HORIZONTAL)
+            y = PHOTO_MARGIN_TOP + row * (img.height + PHOTO_GAP_VERTICAL)
             
             # Размещаем фото на холсте
             canvas.paste(img, (x, y))
