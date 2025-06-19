@@ -35,7 +35,11 @@ TEXT_TO_BOTTOM_PHOTO = 252  # отступ от нижнего фото до п�
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 ASSETS_DIR = os.path.join(APP_DIR, 'assets')
 
-def add_logo_and_signature(canvas, photo_height):
+def calculate_bottom_photo_y(photo_height):
+    """Вычисляет Y-координату нижнего ряда фотографий"""
+    return PHOTO_MARGIN_TOP + photo_height + PHOTO_GAP_VERTICAL + photo_height
+
+def add_logo_and_signature(canvas, bottom_photo_y, photo_height):
     """Добавляет логотип и подпись на холст"""
     try:
         # Загрузка логотипа
@@ -43,11 +47,8 @@ def add_logo_and_signature(canvas, photo_height):
         if logo.mode != 'RGBA':
             logo = logo.convert('RGBA')
             
-        # Вычисляем позицию последнего ряда фотографий
-        last_row_y = PHOTO_MARGIN_TOP + (photo_height + PHOTO_GAP_VERTICAL)  # Y-координата второго ряда
-        
         # Размещаем логотип относительно нижнего ряда фотографий
-        logo_y = last_row_y + photo_height + LOGO_TO_BOTTOM_PHOTO
+        logo_y = bottom_photo_y + LOGO_TO_BOTTOM_PHOTO
         logo_pos = (LOGO_MARGIN_LEFT, logo_y)
         canvas.paste(logo, logo_pos, logo)
         
@@ -58,7 +59,7 @@ def add_logo_and_signature(canvas, photo_height):
             
         # Размещаем подпись справа от логотипа и относительно нижнего ряда фотографий
         signature_x = logo_pos[0] + logo.width + TEXT_MARGIN_LEFT
-        signature_y = last_row_y + photo_height + TEXT_TO_BOTTOM_PHOTO
+        signature_y = bottom_photo_y + TEXT_TO_BOTTOM_PHOTO
         canvas.paste(signature, (signature_x, signature_y), signature)
         
     except Exception as e:
@@ -83,6 +84,9 @@ def resize_images():
         img_width = first_photo.width
         img_height = first_photo.height
         
+        # Вычисляем Y-координату нижнего ряда фотографий
+        bottom_photo_y = calculate_bottom_photo_y(img_height)
+        
         # Размещаем фотографии на холсте
         for i, photo in enumerate(photos):
             img = Image.open(photo)
@@ -100,7 +104,7 @@ def resize_images():
             canvas.paste(img, (x, y))
 
         # Добавляем логотип и подпись
-        add_logo_and_signature(canvas, img_height)
+        add_logo_and_signature(canvas, bottom_photo_y, img_height)
 
         # Сохраняем результат
         output = io.BytesIO()
